@@ -1,0 +1,64 @@
+# Ignore build directories
+/build/
+/Debug/
+/Release/
+
+# Ignore STM32CubeIDE specific files
+/.settings/
+/.cproject
+.project
+.loadpath
+/.metadata
+/.recommenders
+/.externalToolBuilders
+/.launches
+
+# Ignore object files, binaries, and other build artifacts
+*.o
+*.a
+*.out
+*.hex
+*.bin
+*.elf
+*.map
+*.d
+
+# Ignore auto-generated files
+*.suo
+*.user
+*.ncb
+*.opt
+*.plg
+*.log
+
+# Ignore backup files
+*~
+*.bak
+*.swp
+
+# Ignore other IDE specific files
+.vscode/
+.idea/
+
+# Ignore dependency files
+*.d
+
+# Ignore compiled dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Ignore compiled static libraries
+*.lib
+*.a
+
+# Ignore test output
+/test-output/
+
+
+.DS_Store
+*.s
+*.ld
+
+# Ignore STM32CubeIDE specific files
+Inc/stm32f103xb.h
