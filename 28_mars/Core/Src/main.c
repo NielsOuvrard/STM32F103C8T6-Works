@@ -19,7 +19,10 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "tim.h"
+#include "lcd.h"
 #include "gpio.h"
+#include <string.h>
+#include <stdio.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -54,11 +57,40 @@
  * |					|ENCB* ENCA*|ENCB	ENCA|
  * |---------------------------------------------
  */
-volatile uint8_t EncState = 0x00;
+volatile uint8_t EncState = 0; // Estado del encoder
 volatile int32_t EncPulseCounter = 0;
+volatile int32_t lEncCount = 0; // Q[n]
+volatile int32_t lEncPrevCount = 0; // Q[n-1]
+
+//  SetPoint
+#define SPEED 16000
+#define MOTOR_VOLTAGE 9 // 9Volts
+#define MOTOR_MAX_VOLTAGE 24
+#define SET_POINT ((SPEED / MOTOR_MAX_VOLTAGE) / MOTOR_VOLTAGE)
+
+#define PID_MAX_OUTPUT 1000.0F // Max PWM value
+#define PID_MIN_OUTPUT 0.0F // Min PWM value
+
+// Define PID gains
+volatile float Kp = 0.0F;
+volatile float Ki = 0.0F;
+volatile float Kd = 0.0F;
 
 // Define PID variables
-float Kp = 0.0F;
+volatile float e_n_1 = 0.0F;     // Previous error
+volatile float integral = 0.0F;  // Integral term
+volatile float Ts = 1.0F / PID_SAMPLING_RATE; // Sampling time
+
+
+// typedef enum {
+// 	IDLE,
+// 	BUTTON_PRESSED
+// } ButtonState_t;
+
+// uint8_t state = IDLE;
+
+
+// Define PID variables
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -69,54 +101,6 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-/*
-volatile int8_t state = 0; // BIT0 = ENC_A, BIT1 = ENC_B
-volatile int32_t contador = 0;
-
-const uint8_t table[] = {
-	0b00,
-    0b01,
-    0b11,
-    0b10
-};
-
-uint8_t get_index(uint8_t state)
-{
-    for (int i = 0; i < 4; i++)
-    {
-        if (table[i] == state)
-        {
-            return i;
-        }
-    }
-    assert(0); // should never reach here
-}
-
-void EXTI15_10_IRQHandler(void)
-{
-    uint8_t newState = 0;
-    if (GPIOB->IDR & GPIO_PIN_10)
-        newState |= 0b01;
-    if (GPIOB->IDR & GPIO_PIN_11)
-        newState |= 0b11;
-
-    uint8_t state_index = get_index(state);
-    uint8_t new_index = get_index(newState);
-    if (state_index < new_index || (state_index == 3 && new_index == 0))
-    {
-        contador++;
-    }
-    else if (state_index > new_index || (state_index == 0 && new_index == 3))
-    {
-        contador--;
-    }
-    else
-    {
-        assert(0); // should never reach here
-    }
-    state = newState;
-}
-*/
 volatile uint32_t pwm_control = 0; // PWM control signal
 
 #define VALUE_ACTUAL 0
@@ -130,19 +114,21 @@ int32_t get_speed_motor(int32_t q_n, int32_t q_n_1)
 }
 
 
-#define SPEED 16000
-#define MOTOR_VOLTAGE 9 // 9Volts
-#define MOTOR_MAX_VOLTAGE 24
+char lcd_buffer[32] = {0};
 
-// Define PID gains
-volatile float Kp = 0.0F;
-volatile float Ki = 0.0F;
-volatile float Kd = 0.0F;
+void write_the_stuff(float angle_value)
+{
+  char new_buffer[32];
 
-// Define PID variables
-volatile float e_n_1 = 0.0F;     // Previous error
-volatile float integral = 0.0F;  // Integral term
-volatile float Ts = 1.0F / PID_SAMPLING_RATE; // Sampling time
+  sprintf(new_buffer, "EncPos: %f°", angle_value); // ? angle value / position in grade
+  for (int i = 0; i < 32; i++) {
+    if (new_buffer[i] != lcd_buffer[i]) {
+      LCD_Goto_XY(i, 0);
+      LCD_Write(new_buffer[i] ? new_buffer[i] : ' ', 0);
+    }
+  }
+}
+
 
 float PID_algorithm(float e_n)
 {
@@ -236,6 +222,7 @@ int main(void)
   HAL_Init();
 
   /* USER CODE BEGIN Init */
+  LCD_Init(LCD_8B_INTERFACE);
 
   /* USER CODE END Init */
 
@@ -253,6 +240,8 @@ int main(void)
   /* USER CODE BEGIN 2 */
   // Initialize PID variables
   
+  HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0); // ? which priority should be at 1 ? I put both just in case
+
   // Set current encoder state
   if (ENCA_GPIO_Port->IDR & ENCA_Pin) EncState |= 0x01;
   if (ENCA_GPIO_Port->IDR & ENCB_Pin) EncState |= 0x02;
@@ -264,29 +253,39 @@ int main(void)
   // Enable EXTI15_10 Interrupts
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
+
+  uint32_t ulLcdPrintTime = HAL_GetTick(); // lcd stuff I guess
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   uint32_t ulPIDLastTimeWake = HAL_GetTick(); // Get current time in milliseconds
-  int32_t lEncPrevCount = 0; // q[n - 1]
+  lEncPrevCount = 0; // q[n - 1]
   while (1)
   {
-    // each 10 ms
+    // each 100 ms
     //          print "EncPos: {angle value / position in grade}°"
+    if (HAL_GetTick() - ulLcdPrintTime >= 100)
+    {
+      // Get current time
+      ulLcdPrintTime = HAL_GetTick();
+      
+      // Print the encoder position in degrees
+      float fEncPos = (float)EncPulseCounter * 360.0F / ENCODER_PPR;
+      write_the_stuff(fEncPos);
+    }
+    
     // each 1ms
     //          algoritmo PID para el control de la posición del motor
-
-
 	  // Check if PID algorithm must be applied
-	  if((HAL_GetTick() - ulPIDLastTimeWake) >= 10)
+	  if((HAL_GetTick() - ulPIDLastTimeWake) >= 1)
 	  {
 		  // Get current time
 		  ulPIDLastTimeWake = HAL_GetTick();
 
 		  // Get the current encoder pulse counter
 		  __disable_irq();
-		  int32_t lEncCount = EncPulseCounter; // q[n]
+		  lEncCount = EncPulseCounter; // q[n]
 		  __enable_irq();
 		  
 		  // Compute angular speed (RPMs) x[n] = ([CurrentCount - PrevCount]/Ts) * 60 / PPR
@@ -299,7 +298,7 @@ int main(void)
 		  // u[n] = Kp*e[n] + Ki*(ErrorSum[n-1] + e[n])*Ts + Kd*(e[n] - e[n-1])/Ts
 		  // Where e[n] = SetPoint - x[n]
 		  // Ts: PID Sampling Period
-		  float e_n = ((SPEED / MOTOR_MAX_VOLTAGE) / MOTOR_VOLTAGE) - fMotorSpeed;
+		  float e_n = SET_POINT - fMotorSpeed;
 		  float fPwmControl = PID_algorithm(e_n);
 		  
 		  e_n_1 = e_n;
@@ -315,7 +314,7 @@ int main(void)
 			  // Set motor backward direction on L298N
 			  
 			  // Change to positive
-			  fPwmCtrl = -fPwmCtrl;
+			  // fPwmCtrl = -fPwmCtrl;
 		  }
 		  else
 		  {
