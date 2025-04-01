@@ -121,13 +121,12 @@ volatile uint32_t pwm_control = 0; // PWM control signal
 
 #define VALUE_ACTUAL 0
 #define VALUE_LAST 1
-#define PPR 334
 #define DELTA_TIME 0.01
 
 
 int32_t get_speed_motor(int32_t q_n, int32_t q_n_1)
 {
-	return (q_n - q_n_1) / (DELTA_TIME * PPR);
+	return (q_n - q_n_1) / (DELTA_TIME * ENCODER_PPR);
 }
 
 
@@ -250,6 +249,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM4_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
   // Initialize PID variables
   
@@ -272,6 +272,12 @@ int main(void)
   int32_t lEncPrevCount = 0; // q[n - 1]
   while (1)
   {
+    // each 10 ms
+    //          print "EncPos: {angle value / position in grade}°"
+    // each 1ms
+    //          algoritmo PID para el control de la posición del motor
+
+
 	  // Check if PID algorithm must be applied
 	  if((HAL_GetTick() - ulPIDLastTimeWake) >= 10)
 	  {
