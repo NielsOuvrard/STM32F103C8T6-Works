@@ -72,9 +72,9 @@ volatile int32_t lEncPrevCount = 0; // Q[n-1]
 #define PID_MIN_OUTPUT 0.0F // Min PWM value
 
 // Define PID gains
-volatile float Kp = 0.0F;
+volatile float Kp = 0.2F;
+volatile float Kd = 0.1F;
 volatile float Ki = 0.0F;
-volatile float Kd = 0.0F;
 
 // Define PID variables
 volatile float e_n_1 = 0.0F;     // Previous error
@@ -113,21 +113,45 @@ int32_t get_speed_motor(int32_t q_n, int32_t q_n_1)
 	return (q_n - q_n_1) / (DELTA_TIME * ENCODER_PPR);
 }
 
-
-char lcd_buffer[32] = {0};
+uint8_t lcd_buffer[32] = {0};
 
 void write_the_stuff(float angle_value)
 {
-  char new_buffer[32];
+  uint8_t new_buffer[32] = {0};
 
-  sprintf(new_buffer, "EncPos: %f°", angle_value); // ? angle value / position in grade
-  for (int i = 0; i < 32; i++) {
+  angle_value = 0.23;
+  uint8_t len = sprintf((char *)new_buffer, "EncPos: %.2f", angle_value); // ? angle value / position in grade
+  new_buffer[len + 1] = 0xDF; // Write degree symbol on LCD
+
+  for (int i = 0; i < 16; i++) {
     if (new_buffer[i] != lcd_buffer[i]) {
       LCD_Goto_XY(i, 0);
       LCD_Write(new_buffer[i] ? new_buffer[i] : ' ', 0);
+      lcd_buffer[i] = new_buffer[i];
     }
   }
+  LCD_Goto_XY(0, 0);
+  LCD_Write((uint8_t)0xDF, 0);
+  LCD_Write(0xDF, 0);
+  LCD_Write((unsigned char)0xDF, 0);
+
 }
+
+
+// void write_the_stuff(float angle_value)
+// {
+//   LCD_Clear();
+//   uint8_t new_buffer[32] = {0};
+//   int len = sprintf(new_buffer, "EncPos: 0"); // ? angle value / position in grade
+//   LCD_Goto_XY(0, 0);
+//   for (int i = 0; i < len; i++) {
+//     // if (new_buffer[i] != lcd_buffer[i]) {
+//     // if (new_buffer[i] != lcd_buffer[i] && i < len) {
+//     LCD_Write(new_buffer[i], 0);
+//     lcd_buffer[i] = new_buffer[i];
+//     // }
+//   }
+// }
 
 
 float PID_algorithm(float e_n)
@@ -214,6 +238,9 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+	RCC->APB2ENR |= (0x01 << 4); // Enable GPIOC clock
+	GPIOC->CRH &= ~(0xF << 20); // Clear CNF13 & MODE13
+  GPIOC->CRH |= (0x01 << 20); // output mode, max speed 10 MHz
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -224,6 +251,9 @@ int main(void)
   /* USER CODE BEGIN Init */
   LCD_Init(LCD_8B_INTERFACE);
 
+  sprintf(lcd_buffer, "EncPos: 0"); // Initialize lcd buffer with initial message
+  LCD_Print(lcd_buffer); // Print initial message on LCD
+  LCD_Write(0xDF, 0); // Write degree symbol on LCD
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -248,7 +278,7 @@ int main(void)
   
   // Hardware
   SysTick_Config(SystemCoreClock / 1000); 		// Systick to 1ms
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_1);		// Start TIM4.PWM.CH1
+  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);		// Start TIM4.PWM.CH1
 
   // Enable EXTI15_10 Interrupts
   HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
@@ -265,7 +295,7 @@ int main(void)
   {
     // each 100 ms
     //          print "EncPos: {angle value / position in grade}°"
-    if (HAL_GetTick() - ulLcdPrintTime >= 100)
+    if (HAL_GetTick() - ulLcdPrintTime >= 2000)
     {
       // Get current time
       ulLcdPrintTime = HAL_GetTick();

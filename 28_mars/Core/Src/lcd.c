@@ -20,7 +20,79 @@ static void LCD_trigger_enable_pin(void)
 	__NOP();
 	__NOP();
 	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
 
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
 	__NOP();
 	__NOP();
 	__NOP();
@@ -177,7 +249,7 @@ void LCD_Init(uint8_t dbWidth)
 		GPIOA->ODR &= ~(0x01 << 3); // DB3 = 0
 		GPIOA->ODR |= (0x01 << 2); // DB2 = 1
 		GPIOA->ODR |= (0x01 << 1); // DB1 = 1 // I/D = 1: Increment
-		GPIOA->ODR |= (0x01 << 0); // DB0 = 1 // S = 1: Accompanies display shift
+		GPIOA->ODR &= ~(0x01 << 0); // DB0 = 1 // S = 1: Accompanies display shift
 
 		LCD_trigger_enable_pin();
 
@@ -296,7 +368,7 @@ void LCD_Goto_XY (int x, int y)
 	LCD_Write(address, 1);
 }
 
-void LCD_Print(const char *str)
+void LCD_Print(const uint8_t *str)
 {
 	for (int i = 0; str[i] != '\0'; i++)
 	{
