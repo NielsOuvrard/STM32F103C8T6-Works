@@ -6,7 +6,6 @@
  */
 
 #include "main.h"
-#include <cstdint>
 #include <stdio.h>
 #include <string.h>
 
@@ -84,49 +83,49 @@ int main(void)
 
 
 
-volatile int8_t state = 0; // BIT0 = ENC_A, BIT1 = ENC_B
-volatile int32_t contador = 0;
+// volatile int8_t state = 0; // BIT0 = ENC_A, BIT1 = ENC_B
+// volatile int32_t contador = 0;
 
-const uint8_t table[] = {
-	0b00,
-    0b01,
-    0b11,
-    0b10
-};
+// const uint8_t table[] = {
+// 	0b00,
+//     0b01,
+//     0b11,
+//     0b10
+// };
 
-uint8_t get_index(uint8_t state)
-{
-    for (int i = 0; i < 4; i++)
-    {
-        if (table[i] == state)
-        {
-            return i;
-        }
-    }
-    assert(0); // should never reach here
-}
+// uint8_t get_index(uint8_t state)
+// {
+//     for (int i = 0; i < 4; i++)
+//     {
+//         if (table[i] == state)
+//         {
+//             return i;
+//         }
+//     }
+//     assert(0); // should never reach here
+// }
 
-void EXTI15_10_IRQHandler(void)
-{
-    uint8_t newState = 0;
-    if (GPIOB->IDR & GPIO_PIN_10)
-        newState |= 0b01;
-    if (GPIOB->IDR & GPIO_PIN_11)
-        newState |= 0b11;
+// void EXTI15_10_IRQHandler(void)
+// {
+//     uint8_t newState = 0;
+//     if (GPIOB->IDR & GPIO_PIN_10)
+//         newState |= 0b01;
+//     if (GPIOB->IDR & GPIO_PIN_11)
+//         newState |= 0b11;
 
-    uint8_t state_index = get_index(state);
-    uint8_t new_index = get_index(newState);
-    if (state_index < new_index || (state_index == 3 && new_index == 0))
-    {
-        contador++;
-    }
-    else if (state_index > new_index || (state_index == 0 && new_index == 3))
-    {
-        contador--;
-    }
-    else
-    {
-        assert(0); // should never reach here
-    }
-    state = newState;
-}
+//     uint8_t state_index = get_index(state);
+//     uint8_t new_index = get_index(newState);
+//     if (state_index < new_index || (state_index == 3 && new_index == 0))
+//     {
+//         contador++;
+//     }
+//     else if (state_index > new_index || (state_index == 0 && new_index == 3))
+//     {
+//         contador--;
+//     }
+//     else
+//     {
+//         assert(0); // should never reach here
+//     }
+//     state = newState;
+// }

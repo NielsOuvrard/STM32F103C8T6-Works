@@ -177,7 +177,7 @@ void LCD_Init(uint8_t dbWidth)
 		GPIOA->ODR &= ~(0x01 << 3); // DB3 = 0
 		GPIOA->ODR |= (0x01 << 2); // DB2 = 1
 		GPIOA->ODR |= (0x01 << 1); // DB1 = 1 // I/D = 1: Increment
-		GPIOA->ODR |= (0x01 << 0); // DB0 = 1 // S = 1: Accompanies display shift
+		GPIOA->ODR &= ~(0x01 << 0); // DB0 = 1 // S = 1: Accompanies display shift
 
 		LCD_trigger_enable_pin();
 
