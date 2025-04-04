@@ -82,11 +82,6 @@ volatile float integral = 0.0F;  // Integral term
 volatile float Ts = 1.0F / PID_SAMPLING_RATE; // Sampling time
 
 
-// typedef enum {
-// 	IDLE,
-// 	BUTTON_PRESSED
-// } ButtonState_t;
-
 // uint8_t state = IDLE;
 
 
@@ -101,133 +96,70 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
-volatile uint32_t pwm_control = 0; // PWM control signal
+#define NUM_GAINS 3 // Number of gains
+typedef enum gain_state {
+  GAIN_KP,
+  GAIN_KD,
+  GAIN_KI
+} gain_state_t;
 
-#define VALUE_ACTUAL 0
-#define VALUE_LAST 1
-#define DELTA_TIME 0.01
+float *gains_array[3] = {&Kp, &Kd, &Ki}; // Array of pointers to gain variables
 
+volatile gain_state_t state = GAIN_KP; // Current gain state
 
-int32_t get_speed_motor(int32_t q_n, int32_t q_n_1)
+void increment_current_gain()
 {
-	return (q_n - q_n_1) / (DELTA_TIME * ENCODER_PPR);
+  // Increment the current gain value by 0.1
+  *(gains_array[state]) += 0.1f;
 }
 
-uint8_t lcd_buffer[32] = {0};
-
-void write_the_stuff(float angle_value)
+void change_gain_state()
 {
-  uint8_t new_buffer[32] = {0};
+  // Change the current gain state to the next one in the array
+  state = (gain_state_t)((state + 1) % NUM_GAINS);
+}
 
-  angle_value = 0.23;
-  uint8_t len = sprintf((char *)new_buffer, "EncPos: %.2f", angle_value); // ? angle value / position in grade
-  new_buffer[len + 1] = 0xDF; // Write degree symbol on LCD
+// Para ajustar las ganancias, se empleará un botón
+// ◼ Si se presiona el botón menos de ¼ de segundo
+// se incrementa la ganancia actual en 0.1
+// ◼ Si se presiona el botón más de ¾ de segundo, se
+// seleccionará la siguiente ganancia a modificar
 
-  for (int i = 0; i < 16; i++) {
+
+
+uint8_t lcd_buffer[33] = {0};  // One extra byte for null terminator
+
+void write_the_stuff()
+{
+  uint8_t new_buffer[33] = {0}; // One extra byte for null terminator
+
+  // Line 1: " >kp - >kd - >ki"
+  // Line 2: "0.00  0.00  0.00"
+  LCD_Goto_XY(0, 0);
+  uint8_t len = sprintf((char *)new_buffer, "%.2f  %.2f  %.2f %ckp - %ckd - %cki",
+    Kp,
+    Kd,
+    Ki,
+    state == 0 ? '>' : ' ',
+    state == 1 ? '>' : ' ',
+    state == 2 ? '>' : ' '
+    );
+
+
+  for (int i = 0; i < 32; i++) {
     if (new_buffer[i] != lcd_buffer[i]) {
-      LCD_Goto_XY(i, 0);
+      LCD_Goto_XY(i % 16, i / 16);
       LCD_Write(new_buffer[i] ? new_buffer[i] : ' ', 0);
       lcd_buffer[i] = new_buffer[i];
     }
   }
-  LCD_Goto_XY(0, 0);
-  LCD_Write((uint8_t)0xDF, 0);
-  LCD_Write(0xDF, 0);
-  LCD_Write((unsigned char)0xDF, 0);
-
 }
 
-
-// void write_the_stuff(float angle_value)
-// {
-//   LCD_Clear();
-//   uint8_t new_buffer[32] = {0};
-//   int len = sprintf(new_buffer, "EncPos: 0"); // ? angle value / position in grade
-//   LCD_Goto_XY(0, 0);
-//   for (int i = 0; i < len; i++) {
-//     // if (new_buffer[i] != lcd_buffer[i]) {
-//     // if (new_buffer[i] != lcd_buffer[i] && i < len) {
-//     LCD_Write(new_buffer[i], 0);
-//     lcd_buffer[i] = new_buffer[i];
-//     // }
-//   }
-// }
-
-
-float PID_algorithm(float e_n)
-{
-	// Apply PID algorithm with x[n] = current angular speed
-	// u[n] = Kp*e[n] + Ki*(ErrorSum[n-1] + e[n])*Ts + Kd*(e[n] - e[n-1])/Ts
-	// Where e[n] = SetPoint - x[n]
-	// Ts: PID Sampling Period
-	float derivative = (e_n - e_n_1) / Ts;
-
-	return Kp * e_n + Ki * (integral + e_n) * Ts + Kd * derivative;
-}
-
-void EXTI15_10_IRQHandler(void)
-{
-	if(EXTI->PR & EXTI_PR_PIF10 || EXTI->PR & EXTI_PR_PIF11)
-	{
-		// Clear EXTI10 & EXTI11 flags by writing 1
-		EXTI->PR = EXTI_PR_PIF10 | EXTI_PR_PIF11;
-
-		// Compute next state
-		uint8_t nextState = EncState & 0x03;	// Clear next state bit-field
-		if (ENCA_GPIO_Port->IDR & ENCA_Pin) nextState |= (1 << 2);
-		if (ENCA_GPIO_Port->IDR & ENCB_Pin) nextState |= (1 << 3);
-		
-		// Update the pulse counter
-		/*                        _______         _______
-		 *               A ______|       |_______|       |______ A
-		 * negative <---      _______         _______         __      --> positive
-		 *               B __|       |_______|       |_______|   B
-		 *
-		 *
-		 * |	HEX	|	B*	A*	|	B	A	|	Operation
-		 * |--------|-----------|-----------|-------------
-		 * |  0x00	|	0	0	|	0	0	|	IDLE
-		 * |  0x01	|	0	0	|	0	1	|	+1
-		 * |  0x02	|	0	0	|	1	0	|	-1
-		 * |  0x03	|	0	0	|	1	1	|   +2
-		 * |  0x04	|	0	1	|	0	0	|	-1
-		 * |  0x05	|	0	1	|	0	1	|	IDLE
-		 * |  0x06	|	0	1	|	1	0	|	-2
-		 * |  0x07	|	0	1	|	1	1	|	+1
-		 * |  0x08	|	1	0	|	0	0	|	+1
-		 * |  0x09	|	1	0	|	0	1	|	-2
-		 * |  0x0A	|	1	0	|	1	0	|	IDLE
-		 * |  0x0B	|	1	0	|	1	1	|	-1
-		 * |  0x0C	|	1	1	|	0	0	|	+2
-		 * |  0x0D	|	1	1	|	0	1	|	-1
-		 * |  0x0E	|	1	1	|	1	0	|	+1
-		 * |  0x0F	|	1	1	|	1	1	|	IDLE
-		 * |--------|-----------|-----------|-------------
-		 */
-		switch(nextState)
-		{
-			case 0x01: case 0x07: case 0x08: case 0x0E:
-				EncPulseCounter++;
-			break;
-
-			case 0x02: case 0x04: case 0x0B: case 0x0D:
-				EncPulseCounter--;
-			break;
-
-			case 0x03: case 0x0C:
-				EncPulseCounter += 2;
-			break;
-
-			case 0x06: case 0x09:
-				EncPulseCounter -= 2;
-			break;
-		}
-
-		// Update current state with next state
-		EncState = nextState >> 2;
-	}
-}
-
+typedef enum {
+  BUTTON_IDLE = 0,
+  BUTTON_DEBOUNCE,
+  BUTTON_PRESSED
+} ButtonState_t;
 /* USER CODE END 0 */
 
 /**
@@ -239,8 +171,16 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 	RCC->APB2ENR |= (0x01 << 4); // Enable GPIOC clock
+  RCC->APB2ENR |= (0x01 << 3); // Enable GPIOB clock
 	GPIOC->CRH &= ~(0xF << 20); // Clear CNF13 & MODE13
   GPIOC->CRH |= (0x01 << 20); // output mode, max speed 10 MHz
+
+  GPIOB->CRH &= ~(0xF << 8); // Clear CNF10 & MODE10 (bits 8-11 for GPIOB10)
+  GPIOB->CRH |= (0x8 << 8);  // Set CNF10 as input with pull-up/pull-down (0b1000), MODE10 as input (0b00)
+
+  // Enable pull-up or pull-down resistor
+  GPIOB->ODR |= (1 << 10);   // Enable pull-up resistor for GPIOB10
+
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -251,9 +191,9 @@ int main(void)
   /* USER CODE BEGIN Init */
   LCD_Init(LCD_8B_INTERFACE);
 
-  sprintf(lcd_buffer, "EncPos: 0"); // Initialize lcd buffer with initial message
-  LCD_Print(lcd_buffer); // Print initial message on LCD
-  LCD_Write(0xDF, 0); // Write degree symbol on LCD
+  LCD_Print(" >kp -  kd -  ki"); // Print initial message on LCD
+  LCD_Goto_XY(0, 1);
+  LCD_Print("0.00  0.00  0.00");
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -263,97 +203,55 @@ int main(void)
 
   /* USER CODE END SysInit */
 
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_TIM4_Init();
-  MX_TIM3_Init();
-  /* USER CODE BEGIN 2 */
-  // Initialize PID variables
-  
-  HAL_NVIC_SetPriority(TIM4_IRQn, 1, 0); // ? which priority should be at 1 ? I put both just in case
-
-  // Set current encoder state
-  if (ENCA_GPIO_Port->IDR & ENCA_Pin) EncState |= 0x01;
-  if (ENCA_GPIO_Port->IDR & ENCB_Pin) EncState |= 0x02;
-  
-  // Hardware
-  SysTick_Config(SystemCoreClock / 1000); 		// Systick to 1ms
-  HAL_TIM_PWM_Start(&htim4, TIM_CHANNEL_4);		// Start TIM4.PWM.CH1
-
-  // Enable EXTI15_10 Interrupts
-  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
-
-  uint32_t ulLcdPrintTime = HAL_GetTick(); // lcd stuff I guess
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  uint32_t ulPIDLastTimeWake = HAL_GetTick(); // Get current time in milliseconds
-  lEncPrevCount = 0; // q[n - 1]
+  ButtonState_t buttonState = BUTTON_IDLE;
+  uint32_t pressStartTime;
+  uint32_t pressDuration = 0;
   while (1)
   {
     // each 100 ms
     //          print "EncPos: {angle value / position in grade}°"
-    if (HAL_GetTick() - ulLcdPrintTime >= 2000)
-    {
-      // Get current time
-      ulLcdPrintTime = HAL_GetTick();
-      
-      // Print the encoder position in degrees
-      float fEncPos = (float)EncPulseCounter * 360.0F / ENCODER_PPR;
-      write_the_stuff(fEncPos);
-    }
     
-    // each 1ms
-    //          algoritmo PID para el control de la posición del motor
-	  // Check if PID algorithm must be applied
-	  if((HAL_GetTick() - ulPIDLastTimeWake) >= 1)
-	  {
-		  // Get current time
-		  ulPIDLastTimeWake = HAL_GetTick();
-
-		  // Get the current encoder pulse counter
-		  __disable_irq();
-		  lEncCount = EncPulseCounter; // q[n]
-		  __enable_irq();
-		  
-		  // Compute angular speed (RPMs) x[n] = ([CurrentCount - PrevCount]/Ts) * 60 / PPR
-		  float fMotorSpeed = get_speed_motor(lEncCount, lEncPrevCount);
-		  
-		  // Update previous encoder pulse counter with the current encoder pulse counter
-		  lEncPrevCount = lEncCount;
-
-		  // Apply PID algorithm with x[n] = current angular speed
-		  // u[n] = Kp*e[n] + Ki*(ErrorSum[n-1] + e[n])*Ts + Kd*(e[n] - e[n-1])/Ts
-		  // Where e[n] = SetPoint - x[n]
-		  // Ts: PID Sampling Period
-		  float e_n = SET_POINT - fMotorSpeed;
-		  float fPwmControl = PID_algorithm(e_n);
-		  
-		  e_n_1 = e_n;
-		  integral += e_n;
-
-		  // Saturate the output
-		  if(fPwmControl > PID_MAX_OUTPUT) fPwmControl = PID_MAX_OUTPUT;
-		  else if(fPwmControl < PID_MIN_OUTPUT) fPwmControl = PID_MIN_OUTPUT;
-		  
-		  // Change the motor direction if needed based on the sign of the fPwmControl
-		  if(fPwmControl < 0.0F)
-		  {
-			  // Set motor backward direction on L298N
-			  
-			  // Change to positive
-			  // fPwmCtrl = -fPwmCtrl;
-		  }
-		  else
-		  {
-			  // Set motor forward direction on L298N
-		  }
-
-		  // Update duty cycle
-		  HAL_PWM_SetDuty((uint32_t)fPwmControl);
-	  }
+    // Check if the button is pressed
+    switch (buttonState)
+    {
+      case BUTTON_IDLE:
+        if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_RESET) {
+          pressStartTime = HAL_GetTick(); // Record the time when the button is pressed
+          buttonState = BUTTON_DEBOUNCE;
+        }
+        break;
+      
+      case BUTTON_DEBOUNCE:
+        if (HAL_GetTick() - pressStartTime >= 10) {
+          if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_RESET) {
+            buttonState = BUTTON_PRESSED;
+          } else {
+            buttonState = BUTTON_IDLE;
+            increment_current_gain(); // Example: Increment gain
+            write_the_stuff();
+          }
+        }
+        break;
+      case BUTTON_PRESSED:
+        if (!HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_RESET) {
+          buttonState = BUTTON_IDLE;
+          pressDuration = HAL_GetTick() - pressStartTime; // Calculate the press duration
+          // Add your logic based on the press duration
+          if (pressDuration < 250) // Short press (< 250 ms)
+          {
+              increment_current_gain(); // Example: Increment gain
+              write_the_stuff();
+          }
+          else// if (pressDuration >= 750) // Long press (>= 750 ms)
+          {
+              change_gain_state(); // Example: Change gain state
+              write_the_stuff();
+          }
+        }
+        break;
+      default:
+        break;
+    }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
