@@ -72,8 +72,8 @@ volatile int32_t lEncPrevCount = 0; // Q[n-1]
 #define PID_MIN_OUTPUT 0.0F // Min PWM value
 
 // Define PID gains
-volatile float Kp = 0.2F;
-volatile float Kd = 0.1F;
+volatile float Kp = 0.0F;
+volatile float Kd = 0.0F;
 volatile float Ki = 0.0F;
 
 // Define PID variables
@@ -135,14 +135,17 @@ void write_the_stuff()
 
   // Line 1: " >kp - >kd - >ki"
   // Line 2: "0.00  0.00  0.00"
-  LCD_Goto_XY(0, 0);
-  uint8_t len = sprintf((char *)new_buffer, "%.2f  %.2f  %.2f %ckp - %ckd - %cki",
-    Kp,
-    Kd,
-    Ki,
+
+  uint8_t len = sprintf((char *)new_buffer, " %ckp - %ckd - %cki %d.%d   %d.%d   %d.%d",
     state == 0 ? '>' : ' ',
     state == 1 ? '>' : ' ',
-    state == 2 ? '>' : ' '
+    state == 2 ? '>' : ' ',
+    (int)Kp % 10,
+    (int)(Kp * 10) % 10,
+    (int)Kd % 10,
+    (int)(Kd * 10) % 10,
+    (int)Ki % 10,
+    (int)(Ki * 10) % 10
     );
 
 
@@ -193,7 +196,7 @@ int main(void)
 
   LCD_Print(" >kp -  kd -  ki"); // Print initial message on LCD
   LCD_Goto_XY(0, 1);
-  LCD_Print("0.00  0.00  0.00");
+  LCD_Print(" 0.0   0.0   0.0");
   /* USER CODE END Init */
 
   /* Configure the system clock */
