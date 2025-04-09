@@ -130,29 +130,7 @@ void write_the_stuff(float angle_value)
       lcd_buffer[i] = new_buffer[i];
     }
   }
-  LCD_Goto_XY(0, 0);
-  LCD_Write((uint8_t)0xDF, 0);
-  LCD_Write(0xDF, 0);
-  LCD_Write((unsigned char)0xDF, 0);
-
 }
-
-
-// void write_the_stuff(float angle_value)
-// {
-//   LCD_Clear();
-//   uint8_t new_buffer[32] = {0};
-//   int len = sprintf(new_buffer, "EncPos: 0"); // ? angle value / position in grade
-//   LCD_Goto_XY(0, 0);
-//   for (int i = 0; i < len; i++) {
-//     // if (new_buffer[i] != lcd_buffer[i]) {
-//     // if (new_buffer[i] != lcd_buffer[i] && i < len) {
-//     LCD_Write(new_buffer[i], 0);
-//     lcd_buffer[i] = new_buffer[i];
-//     // }
-//   }
-// }
-
 
 float PID_algorithm(float e_n)
 {
@@ -239,6 +217,7 @@ int main(void)
 
   /* USER CODE BEGIN 1 */
 	RCC->APB2ENR |= (0x01 << 4); // Enable GPIOC clock
+  RCC->APB2ENR |= (0x01 << 3); // Enable GPIOB clock
 	GPIOC->CRH &= ~(0xF << 20); // Clear CNF13 & MODE13
   GPIOC->CRH |= (0x01 << 20); // output mode, max speed 10 MHz
   /* USER CODE END 1 */
@@ -406,6 +385,7 @@ void HAL_PWM_SetDuty(uint32_t dc)
 	if(dc > TIM4->ARR) TIM4->CCR1 = TIM4->ARR;
 	else TIM4->CCR1 = dc;
 }
+
 
 /* USER CODE END 4 */
 
