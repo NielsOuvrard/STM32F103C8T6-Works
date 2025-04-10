@@ -119,13 +119,13 @@ int main(void)
 
       
 		  if (ulDistanceCopy < DISTANCE_THRESHOLD && !buzzing) {
-			// HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1); // Activando la salida del canal 2
-			GPIOC->ODR |= (1 << 13); // Enciende el LED
-			buzzing = 1;
+        // HAL_TIM_OC_Start(&htim3, TIM_CHANNEL_1); // Activando la salida del canal 2
+        GPIOC->ODR |= (1 << 13); // Enciende el LED
+        buzzing = 1;
 		  } else if (ulDistanceCopy >= DISTANCE_THRESHOLD && buzzing) {
-			// HAL_TIM_OC_Stop(&htim3, TIM_CHANNEL_1); // Desactivando la salida del canal 2
-			GPIOC->ODR &= ~(1 << 13); // Apaga el LED
-			buzzing = 0;
+        // HAL_TIM_OC_Stop(&htim3, TIM_CHANNEL_1); // Desactivando la salida del canal 2
+        GPIOC->ODR &= ~(1 << 13); // Apaga el LED
+        buzzing = 0;
 		  }
 	}
     /* USER CODE END WHILE */

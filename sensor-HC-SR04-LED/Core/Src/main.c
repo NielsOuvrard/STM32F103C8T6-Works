@@ -70,6 +70,27 @@ static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 /* USER CODE BEGIN PFP */
 
+uint8_t lcd_buffer[33] = {0};  // One extra byte for null terminator
+
+void write_the_stuff(uint32_t distance, uint32_t ms)
+{
+  uint8_t new_buffer[33] = {0}; // One extra byte for null terminator
+
+  // Line 1: " >kp - >kd - >ki"
+  // Line 2: "0.00  0.00  0.00"
+
+  uint8_t len = sprintf((char *)new_buffer, "D=%03dmm at %03dms", distance, ms); // Format the string
+
+
+  for (int i = 0; i < 32; i++) {
+    if (new_buffer[i] != lcd_buffer[i]) {
+      LCD_Goto_XY(i % 16, i / 16);
+      LCD_Write(new_buffer[i] ? new_buffer[i] : ' ', 0);
+      lcd_buffer[i] = new_buffer[i];
+    }
+  }
+}
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -186,6 +207,9 @@ int main(void)
 
   /* USER CODE BEGIN Init */
 
+  LCD_Init(LCD_8B_INTERFACE);
+
+  LCD_Print("D=00mm at 00ms"); // Print initial message on LCD
   /* USER CODE END Init */
 
   /* Configure the system clock */
@@ -194,12 +218,6 @@ int main(void)
   /* USER CODE BEGIN SysInit */
   HCSR04_Init();
 
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  GPIO_InitTypeDef GPIO_InitStruct_LED = {0};
-  GPIO_InitStruct_LED.Pin = GPIO_PIN_5;
-  GPIO_InitStruct_LED.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct_LED.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct_LED);
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -216,11 +234,10 @@ int main(void)
     uint32_t distance = HCSR04_Read();
     if (distance > 0) {
         // Do something with the distance (e.g., print it, control something)
-        printf("D=%dmm at %dms\r\n", distance, HAL_GetTick());
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_SET); // Turn LED ON
+        write_the_stuff(distance, 0); // Replace 0 with actual time if needed
     } else {
         printf("Error or No object detected\r\n");
-        HAL_GPIO_WritePin(GPIOA, GPIO_PIN_5, GPIO_PIN_RESET); // Turn LED OFF
+        write_the_stuff(0, 0); // Display error message on LCD
     }
     HAL_Delay(500); // Delay between readings
     /* USER CODE END WHILE */
