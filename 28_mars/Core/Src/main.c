@@ -320,14 +320,18 @@ int main(void)
 		  // Change the motor direction if needed based on the sign of the fPwmControl
 		  if(fPwmControl < 0.0F)
 		  {
-			  // Set motor backward direction on L298N
+        // Set motor backward direction on L298N
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_RESET); // IN1 = 0
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_SET);   // IN2 = 1
 			  
 			  // Change to positive
-			  // fPwmCtrl = -fPwmCtrl;
+			  fPwmControl = -fPwmControl;
 		  }
 		  else
 		  {
 			  // Set motor forward direction on L298N
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_12, GPIO_PIN_SET);     // IN1 = 0
+        HAL_GPIO_WritePin(GPIOB, GPIO_PIN_13, GPIO_PIN_RESET);   // IN2 = 1
 		  }
 
 		  // Update duty cycle
