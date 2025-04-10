@@ -119,7 +119,7 @@ void write_the_stuff(float angle_value)
 {
   uint8_t new_buffer[32] = {0};
 
-  angle_value = 0.23;
+  // angle_value = 0.23;
   uint8_t len = sprintf((char *)new_buffer, "EncPos: %.2f", angle_value); // ? angle value / position in grade
   new_buffer[len + 1] = 0xDF; // Write degree symbol on LCD
 
@@ -283,6 +283,12 @@ int main(void)
       float fEncPos = (float)EncPulseCounter * 360.0F / ENCODER_PPR;
       write_the_stuff(fEncPos);
     }
+
+    // blue = engine
+    // brown = engine
+
+    // white = 3.3V
+    // 
     
     // each 1ms
     //          algoritmo PID para el control de la posición del motor

@@ -133,3 +133,8 @@ stm32*
 sys*
 .mxproject
 core_cm3.h
+
+gpio.*
+tim.*
+
+*/USB_DEVICE/*
