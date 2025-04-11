@@ -138,3 +138,5 @@ gpio.*
 tim.*
 
 */USB_DEVICE/*
+
+*.scratch

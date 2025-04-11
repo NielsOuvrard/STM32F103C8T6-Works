@@ -274,7 +274,7 @@ int main(void)
   {
     // each 100 ms
     //          print "EncPos: {angle value / position in grade}°"
-    if (HAL_GetTick() - ulLcdPrintTime >= 2000)
+    if (HAL_GetTick() - ulLcdPrintTime >= 100)
     {
       // Get current time
       ulLcdPrintTime = HAL_GetTick();
