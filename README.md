@@ -10,7 +10,15 @@ Some of projects we've done so far:
     - Manipulation of a gyroscope
 
 Some pictures:
-![LCD Screen](Screenshots/IMG_1023.jpeg)
+
+## Use of Ultrasonic Distance Sensor. HC-SR04
+![Ultrasonic Distance Sensor 4MM](Screenshots/IMG_1610.jpeg)
+![Ultrasonic Distance Sensor 21MM](Screenshots/IMG_1611.jpeg)
+
+## LCD ON
+![LCD Screen ON](Screenshots/IMG_1023.jpeg)
+
+## Room Class
 ![Class picture](Screenshots/IMG_0886.jpeg)
 
 Some description of the STM32F103C8T6 microcontroller:
