@@ -50,11 +50,6 @@ static void LCD_trigger_enable_pin(void)
 	__NOP();
 	__NOP();
 	__NOP();
-
-	__NOP();
-	__NOP();
-	__NOP();
-	__NOP();
 	__NOP();
 	__NOP();
 	__NOP();
@@ -127,6 +122,11 @@ static void LCD_trigger_enable_pin(void)
 	__NOP();
 	__NOP();
 	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+	__NOP();
+
 	
 	GPIOB->ODR &= ~(0x01 << 5); // E = 0
 }

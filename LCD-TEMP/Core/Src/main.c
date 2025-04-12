@@ -18,12 +18,13 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "lcd.h"
+#include <stdio.h>
+#include <stdbool.h>
+#include <string.h>
 
 /* USER CODE END Includes */
 
@@ -60,6 +61,7 @@ ADC_HandleTypeDef hadc1;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_ADC1_Init(void);
+
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -86,13 +88,15 @@ float getTemperature(void)
   return temperature;
 }
 
-char screen_buffer[SCREEN_WIDTH * NUMBER_LINES] = {0};
+char screen_buffer[SCREEN_WIDTH * NUMBER_LINES + 1] = {0};
 uint8_t index_display = 0;
 
 void write_temp(float temp, bool second_line)
 {
-	char buffer[SCREEN_WIDTH] = {0};
-	sprintf(buffer, "T(C) = %d.%d", (int)temp, (int)(temp * 10) % 10);
+	char buffer[SCREEN_WIDTH + 1] = {0};
+  uint8_t temp_int = (int)temp;
+  uint8_t temp_dec = ((int)(temp * 10)) % 10;
+	sprintf(buffer, "  T(C) = %d.%d", temp_int, temp_dec);
 
 	for (int i = 0; i < SCREEN_WIDTH; i++) {
 		if (screen_buffer[i + (second_line * SCREEN_WIDTH)] != buffer[i]) {
@@ -100,12 +104,9 @@ void write_temp(float temp, bool second_line)
 			LCD_Write(buffer[i] == 0 ? ' ' : buffer[i], 0);
 		}
 	}
-	sprintf(screen_buffer + (second_line * SCREEN_WIDTH), buffer);
+  memcpy(screen_buffer + (second_line * SCREEN_WIDTH), buffer, SCREEN_WIDTH);
 }
 /* USER CODE END 0 */
-
-
-
 
 /**
   * @brief  The application entry point.
@@ -115,12 +116,10 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
 	RCC->APB2ENR |= (0x01 << 4); // Enable GPIOC clock
 	GPIOC->CRH &= ~(0xF << 20); // Clear CNF13 & MODE13
   GPIOC->CRH |= (0x01 << 20); // output mode, max speed 10 MHz
 
-  LCD_Init(LCD_8B_INTERFACE);
 
   /* USER CODE END 1 */
 
@@ -144,6 +143,8 @@ int main(void)
   MX_GPIO_Init();
   MX_ADC1_Init();
   /* USER CODE BEGIN 2 */
+  
+  LCD_Init(LCD_8B_INTERFACE);
 
   /* USER CODE END 2 */
 
@@ -154,11 +155,10 @@ int main(void)
     float temp = getTemperature();
     // LCD_Clear();
     write_temp(temp, 0);
-    write_temp(4.2, 1);
 		
     GPIOC->ODR ^= (1 << 13);
-    HAL_Delay(10); // 10ms
-	/* USER CODE END WHILE */
+    HAL_Delay(100); // 10ms
+    /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
@@ -184,7 +184,7 @@ void SystemClock_Config(void)
   RCC_OscInitStruct.HSIState = RCC_HSI_ON;
   RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
   RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL3;
+  RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL9;
   if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
@@ -199,12 +199,12 @@ void SystemClock_Config(void)
   RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;
   RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0) != HAL_OK)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_2) != HAL_OK)
   {
     Error_Handler();
   }
   PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_ADC;
-  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV2;
+  PeriphClkInit.AdcClockSelection = RCC_ADCPCLK2_DIV6;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
@@ -220,7 +220,6 @@ static void MX_ADC1_Init(void)
 {
 
   /* USER CODE BEGIN ADC1_Init 0 */
-
   /* USER CODE END ADC1_Init 0 */
 
   ADC_ChannelConfTypeDef sConfig = {0};
@@ -245,7 +244,7 @@ static void MX_ADC1_Init(void)
 
   /** Configure Regular Channel
   */
-  sConfig.Channel = ADC_CHANNEL_1;
+  sConfig.Channel = ADC_CHANNEL_TEMPSENSOR;
   sConfig.Rank = ADC_REGULAR_RANK_1;
   sConfig.SamplingTime = ADC_SAMPLETIME_239CYCLES_5;
   if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
