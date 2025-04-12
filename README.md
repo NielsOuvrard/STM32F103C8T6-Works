@@ -15,6 +15,9 @@ Some pictures:
 ![Ultrasonic Distance Sensor 4MM](Screenshots/IMG_1610.jpeg)
 ![Ultrasonic Distance Sensor 21MM](Screenshots/IMG_1611.jpeg)
 
+## Temperature of the processor
+![LCD Screen ON](Screenshots/IMG_1614.jpeg)
+
 ## LCD ON
 ![LCD Screen ON](Screenshots/IMG_1023.jpeg)
 
