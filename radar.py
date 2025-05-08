@@ -2,9 +2,6 @@ import pygame
 import serial
 import glob
 import sys
-import os
-import re
-import time
 
 # Function to find the first USB serial port
 def find_usb_serial_port():
@@ -33,8 +30,11 @@ def find_usb_serial_port():
 # Initialize pygame
 pygame.init()
 
+MAX_RECTANGLES = 20
+proximities_values = [0 for _ in range(MAX_RECTANGLES)]
+
 # Set up the display
-width, height = 800, 300
+width, height = 1920, 1080
 screen = pygame.display.set_mode((width, height))
 pygame.display.set_caption("Serial Data Display")
 
@@ -67,9 +67,18 @@ def main():
         sys.exit()
     
     distance = 0
-    roataion = 0 # between 0 and 1
+    rotation = 0 # between 0 and 1
+    selected_rect = 0
+    
+    # Set up rectangles
+    num_rectangles = MAX_RECTANGLES
+    rect_width = (width - 20) // MAX_RECTANGLES
+    rect_spacing = 0
+    max_rect_height = height * 0.8  # 80% of the screen height
+    
     running = True
     
+
     while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -86,7 +95,15 @@ def main():
                     try:
                         parts = line.split(',')
                         distance = int(parts[0])
-                        roataion = ((int(parts[1]) - 500) / 2500) * 100 # percentage of rotation
+                        rotation = ((int(parts[1]) - 500) / 2000) * (MAX_RECTANGLES)
+
+                        rotation = max(0, min(MAX_RECTANGLES - 1, rotation)) # Clamp to 0-MAX_RECTANGLES
+                        selected_rect = int(rotation)
+
+                        # Calculate rectangle height based on distance (scale to fit the screen)
+                        # Distance range is 0-25, so we scale it to use most of the screen height
+                        proximities_values[selected_rect] = (distance / 25.0) * max_rect_height
+
                     except (ValueError, IndexError) as e:
                         print(f"Error parsing values: {e}")
         except Exception as e:
@@ -94,15 +111,42 @@ def main():
         
         # Clear the screen
         screen.fill(BLACK)
+
+
         
-        # Draw the values
-        text1 = font.render(f"Value 1: {distance}", True, RED)
-        text2 = font.render(f"Value 2: {roataion}", True, BLUE)
         
-        # Position the text
-        screen.blit(text1, (width//2 - text1.get_width()//2, height//3 - text1.get_height()//2))
-        screen.blit(text2, (width//2 - text2.get_width()//2, 2*height//3 - text2.get_height()//2))
+        # Draw the rectangles
+        for i in range(num_rectangles):
+            rect_x = 10 + i * (rect_width + rect_spacing)
+            
+            # Calculate base position (bottom of rectangle)
+            rect_y = height - 20
+            
+            # Rectangle dimensions
+            rect_h = max(5, proximities_values[i])  # Minimum height of 5 pixels
+            
+            # Determine rectangle color
+            if i == selected_rect:
+                color = RED  # Highlight the selected rectangle
+            else:
+                color = BLUE
+            
+            # Draw the rectangle
+            pygame.draw.rect(screen, color, (rect_x, rect_y - rect_h, rect_width, rect_h))
+            
+            # Draw a thin border around each rectangle
+            pygame.draw.rect(screen, WHITE, (rect_x, rect_y - rect_h, rect_width, rect_h), 1)
         
+
+        # Draw information text
+        distance_text = font.render(f"Distance: {distance}", True, WHITE)
+        rotation_text = font.render(f"Rotation: {rotation:.1f}", True, WHITE)
+        selected_text = font.render(f"Selected Rectangle: {selected_rect}", True, WHITE)
+        
+        screen.blit(distance_text, (10, 10))
+        screen.blit(rotation_text, (10, 80))
+        screen.blit(selected_text, (10, 160))
+
         # Update the display
         pygame.display.flip()
         
